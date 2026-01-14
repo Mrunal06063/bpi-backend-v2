@@ -1,0 +1,7 @@
+from twilio.rest import Client
+
+ACCOUNT_SID = "AC261b827d7c5e8a4d652cc3f602bce12c"
+AUTH_TOKEN = "e557f755b93bb201412220b7a5372dc2"
+VERIFY_SERVICE_SID = "VA5fbcbe301431289cbf63cd069183f956"
+
+client = Client(ACCOUNT_SID, AUTH_TOKEN)
