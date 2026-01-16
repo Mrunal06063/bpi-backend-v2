@@ -1,21 +1,49 @@
-from fastapi import APIRouter, HTTPException, Depends
-from sqlalchemy.orm import Session
-from app.database import get_db
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from app.twilio_config import client, VERIFY_SERVICE_SID
 
-router = APIRouter(prefix="/auth", tags=["Auth"])
+router = APIRouter()
+
+class SendOTP(BaseModel):
+    mobile: str
+    role: str
+
+class VerifyOTP(BaseModel):
+    mobile: str
+    otp: str
+    role: str
 
 
-@router.post("/login")
-def login(data: dict, db: Session = Depends(get_db)):
-    email = data.get("email")
-    password = data.get("password")
+@router.post("/send-otp")
+def send_otp(data: SendOTP):
+    try:
+        client.verify.v2.services(VERIFY_SERVICE_SID).verifications.create(
+            to=f"+91{data.mobile}",
+            channel="sms"
+        )
+        return {"message": "OTP sent"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Missing credentials")
 
-    role = "employee" if email.endswith("@blauplug.com") else "customer"
+@router.post("/verify-otp")
+def verify_otp(data: VerifyOTP):
+    try:
+        verification = client.verify.v2.services(
+            VERIFY_SERVICE_SID
+        ).verification_checks.create(
+            to=f"+91{data.mobile}",
+            code=data.otp
+        )
 
-    return {
-        "email": email,
-        "role": role
-    }
+        if verification.status != "approved":
+            raise HTTPException(status_code=401, detail="Invalid OTP")
+
+        return {
+            "mobile": data.mobile,
+            "role": data.role,
+            "token": "demo-token"
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
