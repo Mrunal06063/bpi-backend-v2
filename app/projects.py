@@ -7,6 +7,9 @@ router = APIRouter(
     tags=["Projects"]
 )
 
+# =========================
+# GET PROJECTS (UNCHANGED)
+# =========================
 @router.get("")
 def get_projects(
     page: int = Query(1, ge=1),
@@ -15,20 +18,18 @@ def get_projects(
     offset = (page - 1) * limit
 
     with engine.connect() as conn:
-        # Get total number of records
-        total_result = conn.execute(
+        total_records = conn.execute(
             text("SELECT COUNT(*) FROM projects")
-        )
-        total_records = total_result.scalar()
+        ).scalar()
 
-        # Get paginated records
         result = conn.execute(
             text("""
                 SELECT
                     project_id,
                     project_code,
                     project_name,
-                    is_active
+                    is_active,
+                    remarks
                 FROM projects
                 ORDER BY project_id DESC
                 LIMIT :limit OFFSET :offset
@@ -36,14 +37,16 @@ def get_projects(
             {"limit": limit, "offset": offset}
         )
 
-        projects = []
-        for row in result:
-            projects.append({
+        projects = [
+            {
                 "projectId": row.project_id,
                 "projectCode": row.project_code,
                 "projectName": row.project_name,
-                "projectStatus": "Active" if row.is_active else "Inactive"
-            })
+                "projectStatus": "Active" if row.is_active else "Inactive",
+                "remarks": row.remarks
+            }
+            for row in result
+        ]
 
     total_pages = (total_records + limit - 1) // limit
 
@@ -56,3 +59,34 @@ def get_projects(
             "totalPages": total_pages
         }
     }
+
+# =========================
+# ADD PROJECT (MATCHES FRONTEND PAYLOAD)
+# =========================
+@router.post("")
+def add_project(payload: dict):
+    with engine.begin() as conn:
+        conn.execute(
+            text("""
+                INSERT INTO projects (
+                    project_code,
+                    project_name,
+                    is_active,
+                    remarks
+                )
+                VALUES (
+                    :project_code,
+                    :project_name,
+                    :is_active,
+                    :remarks
+                )
+            """),
+            {
+                "project_code": payload["projectCode"],
+                "project_name": payload["projectName"],
+                "is_active": True if payload["projectStatus"] == "Active" else False,
+                "remarks": payload.get("remarks")
+            }
+        )
+
+    return {"message": "Project added successfully"}
