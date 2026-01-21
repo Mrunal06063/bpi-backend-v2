@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Depends
 from sqlalchemy import text
 from app.database import engine
+from app.utils.auth_guard import get_current_user
 
 router = APIRouter(
     prefix="/api/projects",
@@ -8,12 +9,13 @@ router = APIRouter(
 )
 
 # =========================
-# GET PROJECTS (UNCHANGED)
+# GET PROJECTS (JWT PROTECTED)
 # =========================
 @router.get("")
 def get_projects(
     page: int = Query(1, ge=1),
-    limit: int = Query(10, ge=1, le=50)
+    limit: int = Query(10, ge=1, le=50),
+    user=Depends(get_current_user)
 ):
     offset = (page - 1) * limit
 
@@ -28,7 +30,7 @@ def get_projects(
                     project_id,
                     project_code,
                     project_name,
-                    is_active,
+                    status,
                     remarks
                 FROM projects
                 ORDER BY project_id DESC
@@ -42,7 +44,7 @@ def get_projects(
                 "projectId": row.project_id,
                 "projectCode": row.project_code,
                 "projectName": row.project_name,
-                "projectStatus": "Active" if row.is_active else "Inactive",
+                "projectStatus": row.status,
                 "remarks": row.remarks
             }
             for row in result
@@ -60,33 +62,68 @@ def get_projects(
         }
     }
 
+
 # =========================
-# ADD PROJECT (MATCHES FRONTEND PAYLOAD)
+# ADD PROJECT (JWT PROTECTED)
 # =========================
 @router.post("")
-def add_project(payload: dict):
+def add_project(
+    payload: dict,
+    user=Depends(get_current_user)
+):
     with engine.begin() as conn:
         conn.execute(
             text("""
                 INSERT INTO projects (
                     project_code,
                     project_name,
-                    is_active,
+                    status,
                     remarks
                 )
                 VALUES (
                     :project_code,
                     :project_name,
-                    :is_active,
+                    :status,
                     :remarks
                 )
             """),
             {
                 "project_code": payload["projectCode"],
                 "project_name": payload["projectName"],
-                "is_active": True if payload["projectStatus"] == "Active" else False,
+                "status": payload.get("projectStatus", "Active"),
                 "remarks": payload.get("remarks")
             }
         )
 
     return {"message": "Project added successfully"}
+
+
+# =========================
+# UPDATE PROJECT STATUS (JWT PROTECTED)
+# =========================
+@router.patch("/{project_id}/status")
+def update_project_status(
+    project_id: int,
+    payload: dict,
+    user=Depends(get_current_user)
+):
+    status = payload.get("status", "Active")
+
+    with engine.begin() as conn:
+        result = conn.execute(
+            text("""
+                UPDATE projects
+                SET status = :status
+                WHERE project_id = :project_id
+            """),
+            {
+                "status": status,
+                "project_id": project_id
+            }
+        )
+
+        if result.rowcount == 0:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail="Project not found")
+
+    return {"message": "Project status updated successfully"}

@@ -1,12 +1,20 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.twilio_config import client, VERIFY_SERVICE_SID
+from app.utils.security import create_access_token
+from app.jwt import create_access_token
 
-router = APIRouter()
 
+router = APIRouter(prefix="/auth", tags=["Auth"])
+
+
+# ======================
+# SCHEMAS
+# ======================
 class SendOTP(BaseModel):
     mobile: str
     role: str
+
 
 class VerifyOTP(BaseModel):
     mobile: str
@@ -14,6 +22,9 @@ class VerifyOTP(BaseModel):
     role: str
 
 
+# ======================
+# SEND OTP
+# ======================
 @router.post("/send-otp")
 def send_otp(data: SendOTP):
     try:
@@ -26,6 +37,9 @@ def send_otp(data: SendOTP):
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ======================
+# VERIFY OTP + JWT
+# ======================
 @router.post("/verify-otp")
 def verify_otp(data: VerifyOTP):
     try:
@@ -39,10 +53,19 @@ def verify_otp(data: VerifyOTP):
         if verification.status != "approved":
             raise HTTPException(status_code=401, detail="Invalid OTP")
 
+        # 🔐 CREATE JWT TOKEN
+        access_token = create_access_token(
+            data={
+                "sub": data.mobile,
+                "role": data.role
+            }
+        )
+
         return {
             "mobile": data.mobile,
             "role": data.role,
-            "token": "demo-token"
+            "access_token": access_token,
+            "token_type": "bearer"
         }
 
     except Exception as e:
