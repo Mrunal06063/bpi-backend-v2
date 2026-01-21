@@ -5,4 +5,4 @@ twilio
 pydantic
 sqlalchemy
 psycopg2-binary
-pyjwt
+python-jose[cryptography]
