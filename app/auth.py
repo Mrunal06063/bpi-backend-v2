@@ -60,11 +60,11 @@ def verify_otp(data: VerifyOTP):
                 "role": data.role
             }
         )
-
+        
         return {
             "mobile": data.mobile,
             "role": data.role,
-            "access_token": access_token,
+            "accessToken": access_token,
             "token_type": "bearer"
         }
 
