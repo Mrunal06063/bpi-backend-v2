@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from app.twilio_config import client, VERIFY_SERVICE_SID
-from app.utils.security import create_access_token
 from app.jwt import create_access_token
 from app.database import engine
 from sqlalchemy import text
