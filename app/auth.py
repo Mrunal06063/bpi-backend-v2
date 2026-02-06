@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from sqlalchemy import text
 from app.twilio_config import client, VERIFY_SERVICE_SID
 from app.jwt import create_access_token
+from app.database import engine
 
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -52,22 +54,39 @@ def verify_otp(data: VerifyOTP):
         if verification.status != "approved":
             raise HTTPException(status_code=401, detail="Invalid OTP")
 
+        #  FETCH EMPLOYEE DATA FROM DATABASE
+        with engine.connect() as conn:
+            result = conn.execute(
+                text("""
+                    SELECT emp_id, mobile_number, role, full_name
+                    FROM employees
+                    WHERE mobile_number = :mobile AND role = :role
+                """),
+                {"mobile": data.mobile, "role": data.role}
+            ).fetchone()
+
+            if not result:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Employee not found or role mismatch"
+                )
+
         # 🔐 CREATE JWT TOKEN
         access_token = create_access_token(
             data={
-                "sub": emp.mobile_number,
-                "emp_id": emp.emp_id,
-                "role": emp.role
+                "sub": result.mobile_number,
+                "emp_id": result.emp_id,
+                "role": result.role
             }
         )
-       
+
         return {
             "accessToken": access_token,
             "currentUser": {
-                "emp_id": emp.emp_id,
-                "mobile": emp.mobile_number,
-                "role": emp.role,
-                "full_name": emp.full_name
+                "emp_id": result.emp_id,
+                "mobile": result.mobile_number,
+                "role": result.role,
+                "full_name": result.full_name
             }
         }
     except Exception as e:
