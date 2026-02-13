@@ -21,6 +21,7 @@ class VerifyOTP(BaseModel):
     mobile: str
     otp: str
     role: str
+    rememberMe: bool = False  # Optional: defaults to False
 
 
 # ======================
@@ -73,12 +74,17 @@ def verify_otp(data: VerifyOTP):
             )
 
         # 🔐 CREATE JWT TOKEN
+        # If rememberMe is True: 24 hours (1440 minutes)
+        # If rememberMe is False: 60 minutes (session only)
+        token_expiry = 1440 if data.rememberMe else 60
+
         access_token = create_access_token(
             data={
                 "sub": emp.mobile_number,
                 "emp_id": emp.emp_id,
                 "role": emp.role
-            }
+            },
+            expires_in_minutes=token_expiry
         )
         
         return {
