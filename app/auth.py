@@ -58,7 +58,13 @@ def verify_otp(data: VerifyOTP):
         with engine.connect() as conn:
             emp = conn.execute(
                 text("""
-                    SELECT emp_id, full_name, mobile_number, role
+                    SELECT emp_id,
+       full_name,
+       first_name,
+       last_name,
+       designation,
+       mobile_number,
+       role
                     FROM employees
                     WHERE mobile_number = :mobile
                       AND is_active = true
@@ -87,7 +93,10 @@ def verify_otp(data: VerifyOTP):
                 "emp_id": emp.emp_id,
                 "mobile": emp.mobile_number,
                 "role": emp.role,
-                "full_name": emp.full_name
+                "full_name": emp.full_name,
+                "first_name": emp.first_name,
+                "last_name": emp.last_name,
+                "designation": emp.designation
             }
         }
     except Exception as e:
