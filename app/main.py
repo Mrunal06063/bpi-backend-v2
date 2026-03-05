@@ -8,7 +8,7 @@ app = FastAPI()
 # CORS (for React / Next.js)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"], #restrict origins only to frontend 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
