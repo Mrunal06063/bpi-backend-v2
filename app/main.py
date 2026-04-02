@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.auth import router as auth_router
 from app.projects import router as projects_router
-from config import CORS_ORIGINS
+from app.config import CORS_ORIGINS
 app = FastAPI()
 
 # CORS (for React / Next.js)
